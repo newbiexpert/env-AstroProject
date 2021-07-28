@@ -2,12 +2,8 @@ from typing import ItemsView
 from asyncio.tasks import sleep
 import cv2
 import mediapipe as mp
-# import os
-# import time
 import asyncio
 import pyrebase
-# import firebase_admin
-# from firebase_admin import credentials, messaging
 from datetime import datetime
 from pusher_push_notifications import PushNotifications
 
@@ -18,14 +14,11 @@ config = {
     "databaseURL" : "https://astroapp-cbf26-default-rtdb.firebaseio.com",
     "projectId" : "astroapp-cbf26",
     "storageBucket" : "astroapp-cbf26.appspot.com",
-    "serviceAccount" : r"C:\Users\user\env-AstroProject\serviceAccAstro.json"
+    "serviceAccount" : r"serviceAccAstro.json"
 }
 
 firebaseConnect = pyrebase.initialize_app(config)
-# storage = firebase_strorage.storage()
 db = firebaseConnect.database()
-# cred = credentials.Certificate("serviceAccAstro.json")
-# firebase_admin.initialize_app(cred)
 
 pn_client = PushNotifications(
     instance_id='664b9c5f-0e58-442f-a7e4-4f7c7e0c2b87',
@@ -37,7 +30,6 @@ mp_hands = mp.solutions.hands
 hands = mp_hands.Hands()
 mp_draw = mp.solutions.drawing_utils
 cap = cv2.VideoCapture(0)
-# directory = r'D:\satrio\Python-SignLangDetection\output' #output
 signGesture = [8, 12, 16, 20]
 jempol_sign = 4
 now = datetime.now() 
@@ -45,12 +37,37 @@ time_stamp = now.strftime("%d-%m-%Y %H-%M-%S")
 timeNow = now.strftime("%H-%M")
 tanggal = now.strftime("%Y-%m-%d")
 
-# os.chdir(directory) #output Path
+async def pushInDb(aktivitas):
 
-#Sign Language Logic
+    db.child("Riwayat Aktivitas")
+    dataset = {
+        'nama_aktivitas' : aktivitas,
+        'jam' : timeNow,
+        'tanggal' : tanggal
+    }
+    await asyncio.sleep(2)
+    db.push(dataset)
+
+
+async def pushNotif(body):
+    TOPIC = "aktivitas"
+    ALERT_NOTIF = "Report Created"
+    TITLE_NOTIF = "Aktivitas Pasien"
+    BODY_NOTIF = body
+    await asyncio.sleep(2)
+    pn_client.publish(
+        interests=[TOPIC],
+        publish_body={'apns': {'aps': {'alert': ALERT_NOTIF}},
+                        'fcm': {'notification': {'title': TITLE_NOTIF, 'body': BODY_NOTIF}}}
+    )
+
+def printText(text):
+    cv2.putText(img, text, (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1,(0, 0, 255), 3)
+    print(text)
+
+
 while True :
     ret, img, = cap.read()
-    # img = cv2.flip(img, 1)
     h, w, c = img.shape
     results = hands.process(img)  
     
@@ -79,123 +96,29 @@ while True :
 
             if all(sign_status) :
                 if lm_list[jempol_sign].y < lm_list[jempol_sign - 1].y < lm_list[jempol_sign - 2].y :
-                    cv2.putText(img, "MINUM", (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1,(0, 0, 255), 3)
-                    print("MINUM")
-                    # fileName = f'minum_{time_stamp}.jpg'
-                    # cv2.imwrite(fileName, img, [int (cv2.IMWRITE_JPEG_QUALITY), 30])
-                    # storage.child(fileName).put(fileName)
-                    db.child("Riwayat Aktivitas")
-                    dataset = {
-                        'nama_aktivitas' : 'Minum',
-                        'jam' : timeNow,
-                        'tanggal' : tanggal
-                    }
-
-                    async def minum ():
-                        await asyncio.sleep(2)
-                        db.push(dataset)
-                    asyncio.run(minum())
-
-                    #cons variable
-                    TOPIC = "aktivitas"
-                    ALERT_NOTIF = "Report Created"
-                    TITLE_NOTIF = "Aktivitas Pasien"
-                    BODY_NOTIF = "Pasien membutuhkan minum"
-                    response = pn_client.publish(
-                        interests=[TOPIC],
-                        publish_body={'apns': {'aps': {'alert': ALERT_NOTIF}},
-                                        'fcm': {'notification': {'title': TITLE_NOTIF, 'body': BODY_NOTIF}}}
-                    )
+                    printText("MINUM")
+                    asyncio.run(pushInDb("Minum"))
+                    asyncio.run(pushNotif("Pasien membutuhkan minum"))
 
             elif sign_status == [True, True, True, False]:
                 if lm_list[jempol_sign].y < lm_list[jempol_sign - 1].y < lm_list[jempol_sign - 2].y :
-                    cv2.putText(img, "MAKAN", (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1,(0, 0, 255), 3)
-                    print("MAKAN")
-                    # fileName = f'makan_{time_stamp}.jpg'
-                    # cv2.imwrite(fileName, img, [int (cv2.IMWRITE_JPEG_QUALITY), 30])
-                    # storage.child(fileName).put(fileName)
-                    db.child("Riwayat Aktivitas")
-                    dataset = {
-                        'nama_aktivitas' : 'Makan',
-                        'jam' : timeNow,
-                        'tanggal' : tanggal
-                    }
-
-                    async def makan():
-                        await asyncio.sleep(2)
-                        db.push(dataset)
-                    asyncio.run(makan())
-                    
-                    #cons variable
-                    TOPIC = "aktivitas"
-                    ALERT_NOTIF = "Report Created"
-                    TITLE_NOTIF = "Aktivitas Pasien"
-                    BODY_NOTIF = "Pasien membutuhkan makan"
-                    response = pn_client.publish(
-                        interests=[TOPIC],
-                        publish_body={'apns': {'aps': {'alert': ALERT_NOTIF}},
-                                        'fcm': {'notification': {'title': TITLE_NOTIF, 'body': BODY_NOTIF}}}
-                    )
+                    printText("MAKAN")
+                    asyncio.run(pushInDb("Makan"))
+                    asyncio.run(pushNotif("Pasien membutuhkan makan"))
 
             elif sign_status == [False, True, True, True]:
                 if lm_list[jempol_sign].y < lm_list[jempol_sign - 1].y < lm_list[jempol_sign - 2].y :
-                    cv2.putText(img, "PIPIS", (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1,(0, 0, 255), 3)
-                    print("PIPIS")
-                    # fileName = f'pipis_{time_stamp}.jpg'
-                    # cv2.imwrite(fileName, img, [int (cv2.IMWRITE_JPEG_QUALITY), 30])
-                    # storage.child(fileName).put(fileName)
-                    db.child("Riwayat Aktivitas")
-                    dataset = {
-                        'nama_aktivitas' : 'Pipis',
-                        'jam' : timeNow,
-                        'tanggal' : tanggal
-                    }
-
-                    async def pipis():
-                        await asyncio.sleep(2)
-                        db.push(dataset)
-                    asyncio.run(pipis())
+                    printText("PIPIS")
+                    asyncio.run(pushInDb("Pipis"))
+                    asyncio.run(pushNotif("Pasien membutuhkan pergi ke kamar mandi"))
             
-                    #cons variable
-                    TOPIC = "aktivitas"
-                    ALERT_NOTIF = "Report Created"
-                    TITLE_NOTIF = "Aktivitas Pasien"
-                    BODY_NOTIF = "Pasien membutuhkan pergi ke kamar mandi"
-                    response = pn_client.publish(
-                        interests=[TOPIC],
-                        publish_body={'apns': {'aps': {'alert': ALERT_NOTIF}},
-                                        'fcm': {'notification': {'title': TITLE_NOTIF, 'body': BODY_NOTIF}}}
-                    )
 
             elif sign_status == [False, False, True, True]: 
                 if lm_list[jempol_sign].y < lm_list[jempol_sign - 1].y < lm_list[jempol_sign - 2].y :
-                    cv2.putText(img, "PUP", (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1,(0, 0, 255), 3)
-                    print("PUP")
-                    # fileName = f'pup_{time_stamp}.jpg'
-                    # cv2.imwrite(fileName, img, [int (cv2.IMWRITE_JPEG_QUALITY), 30])
-                    # storage.child(fileName).put(fileName)
-                    db.child("Riwayat Aktivitas")
-                    dataset = {
-                        'nama_aktivitas' : 'Pup',
-                        'jam' : timeNow,
-                        'tanggal' : tanggal
-                    }
+                    printText("PUP")
+                    asyncio.run(pushInDb("Pup"))
+                    asyncio.run(pushNotif("Pasien membutuhkan pergi ke kamar mandi"))
 
-                    async def pup():
-                        await asyncio.sleep(2)
-                        db.push(dataset)
-                    asyncio.run(pup())
-
-                    #cons variable
-                    TOPIC = "aktivitas"
-                    ALERT_NOTIF = "Report Created"
-                    TITLE_NOTIF = "Aktivitas Pasien"
-                    BODY_NOTIF = "Pasien membutuhkan pergi ke kamar mandi"
-                    response = pn_client.publish(
-                        interests=[TOPIC],
-                        publish_body={'apns': {'aps': {'alert': ALERT_NOTIF}},
-                                        'fcm': {'notification': {'title': TITLE_NOTIF, 'body': BODY_NOTIF}}}
-                    )
             
             mp_draw.draw_landmarks(img, hand_landmark,
                                    mp_hands.HAND_CONNECTIONS,

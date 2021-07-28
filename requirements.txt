@@ -5,3 +5,4 @@ pyrebase4
 asyncio
 crypto
 firebase-admin
+pusher_push_notifications
